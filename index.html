@@ -12,7 +12,7 @@
 <style>
 :root{
   --bg:#f5f3ee; --surface:#ffffff; --surface2:#efece5; --ink:#17162a; --muted:#6b6879; --line:#e3dfd5;
-  --accent:#ff5a36; --accent-ink:#ffffff; --accent-soft:#ffe7e0; --blue:#3557ff; --green:#0f9d74; --green-soft:#dcf3ea;
+  --accent:#ff5a36; --accent-ink:#ffffff; --accent-soft:color-mix(in srgb,var(--accent) 14%,var(--surface)); --blue:#3557ff; --green:#0f9d74; --green-soft:#dcf3ea;
   --amber:#c98a00; --amber-soft:#fbefd0; --red:#d93b3b;
   --radius:16px; --shadow:0 1px 2px rgba(23,22,42,.05),0 6px 20px rgba(23,22,42,.06);
   --font:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
@@ -21,7 +21,7 @@
 }
 @media (prefers-color-scheme:dark){
   :root{ --bg:#111020; --surface:#1b1a2d; --surface2:#25243a; --ink:#f3f1eb; --muted:#a29fb3; --line:#302f47;
-    --accent-soft:#3b221d; --green-soft:#12342a; --amber-soft:#3a2f12; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25); color-scheme:dark; }
+    --accent-soft:color-mix(in srgb,var(--accent) 20%,var(--surface)); --green-soft:#12342a; --amber-soft:#3a2f12; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25); color-scheme:dark; }
 }
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -64,7 +64,7 @@ label.field>span{display:block;margin-bottom:6px}
 .badge.green{background:var(--green-soft);color:var(--green)}
 .badge.amber{background:var(--amber-soft);color:var(--amber)}
 .logo{font-family:var(--display);font-weight:800;font-size:20px;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
-.logo i{width:28px;height:28px;border-radius:9px;background:var(--accent);display:inline-grid;place-items:center;font-style:normal;color:#fff;font-size:15px}
+.logo i{width:28px;height:28px;border-radius:9px;background:var(--accent);display:inline-grid;place-items:center;font-style:normal;color:var(--accent-ink);font-size:15px}
 .notice{padding:12px 14px;border-radius:12px;background:var(--surface2);color:var(--muted);font-size:14px}
 .notice.warn{background:var(--amber-soft);color:var(--amber)}
 .empty{text-align:center;padding:36px 12px;color:var(--muted)}
@@ -80,7 +80,7 @@ label.field>span{display:block;margin-bottom:6px}
 .seg{display:inline-flex;gap:2px;font-size:14px}
 .seg button{border:0;background:transparent;padding:6px 10px;border-radius:999px;cursor:pointer;color:var(--muted);font-weight:600}
 .seg button.on{background:var(--surface2);color:var(--ink)}
-.count{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:12px;line-height:20px;text-align:center;margin-left:4px}
+.count{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-size:12px;line-height:20px;text-align:center;margin-left:4px}
 
 /* top bar (participant) */
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:6px}
@@ -230,7 +230,30 @@ label.field>span{display:block;margin-bottom:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* screen (projector) */
-body.screen{background:#14132a;color:#f4f2ec;--surface:#1f1e38;--surface2:#2b2a48;--ink:#f4f2ec;--muted:#a7a4bd;--line:#35345a;--accent-soft:rgba(255,90,54,.16);--green-soft:rgba(15,157,116,.2);overflow:hidden}
+body.screen{--sbg:#14132a;--ink:#f4f2ec;background:var(--sbg);color:var(--ink);--surface:color-mix(in srgb,var(--ink) 7%,var(--sbg));--surface2:color-mix(in srgb,var(--ink) 13%,var(--sbg));--muted:color-mix(in srgb,var(--ink) 62%,var(--sbg));--line:color-mix(in srgb,var(--ink) 18%,var(--sbg));--accent-soft:color-mix(in srgb,var(--accent) 18%,var(--sbg));--green-soft:color-mix(in srgb,#0f9d74 22%,var(--sbg));overflow:hidden}
+body.screen.slight{--ink:#17162a}
+body.screen.slight .s-qr,body.screen.slight .qrbox{box-shadow:0 0 0 1px var(--line)}
+.ev-logo-slot:empty{display:none}
+.ev-logo-slot img{display:block;object-fit:contain;max-height:44px;max-width:160px}
+.p-head{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0}
+.p-logo img{max-height:44px;max-width:180px}
+.a-logo img{max-height:52px;max-width:200px;margin-top:10px}
+.s-logo img{max-height:clamp(32px,4.6vw,88px);max-width:22vw}
+.w-logo img{max-height:15vh;max-width:36vw;margin-bottom:2.4vw}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sw{width:32px;height:32px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0;background:var(--c)}
+.sw.on{outline:3px solid var(--ink);outline-offset:2px}
+.swatches input[type=color]{width:40px;height:34px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);padding:2px;cursor:pointer}
+.logo-pick{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.logo-pick .lp{min-width:120px;height:60px;border:1.5px dashed var(--line);border-radius:12px;display:grid;place-items:center;padding:6px;color:var(--muted);font-size:13px;background:repeating-conic-gradient(var(--surface2) 0 25%,var(--surface) 0 50%) 0 0/16px 16px}
+.logo-pick .lp img{max-height:48px;max-width:180px;display:block}
+.bp{border-radius:14px;padding:16px 18px;border:1px solid var(--line)}
+.bp-top{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;opacity:.85;margin-bottom:14px;min-height:28px}
+.bp-top img{max-height:28px;max-width:120px}
+.bp-title{font-size:22px;font-weight:800;line-height:1.15;margin-bottom:14px}
+.bp-bar{height:10px;border-radius:99px;background:rgba(127,127,127,.22);margin-top:8px;overflow:hidden}
+.bp-bar i{display:block;height:100%;border-radius:99px}
+.bp-btn{display:inline-block;margin-top:14px;padding:7px 16px;border-radius:99px;font-weight:700;font-size:14px}
 .s-wrap{height:100vh;display:flex;flex-direction:column;padding:2.2vw 3vw}
 .s-top{display:flex;justify-content:space-between;align-items:center;gap:2vw}
 .s-join{font-size:clamp(16px,1.6vw,30px);color:var(--muted)}
@@ -256,7 +279,7 @@ body.screen .avg small{font-size:.3em}
 body.screen .texts{grid-template-columns:repeat(auto-fill,minmax(22vw,1fr));gap:1vw}
 body.screen .text-card{font-size:clamp(16px,1.5vw,30px);padding:1.2vw 1.4vw}
 body.screen .cloud{min-height:40vh;gap:.6vw 2vw}
-.s-hl{background:var(--accent);color:#fff;border-radius:2vw;padding:2.2vw 2.6vw;margin-bottom:2vw}
+.s-hl{background:var(--accent);color:var(--accent-ink);border-radius:2vw;padding:2.2vw 2.6vw;margin-bottom:2vw}
 .s-hl small{display:block;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.85;font-size:clamp(12px,1.1vw,22px)}
 .s-hl p{font-family:var(--display);font-weight:700;font-size:clamp(24px,3.2vw,64px);margin:.6vw 0 .4vw;line-height:1.15}
 .s-hl span{opacity:.85;font-size:clamp(14px,1.3vw,26px)}
@@ -328,6 +351,50 @@ const KINDS = {
   open:      { label: 'Otvorená otázka',              short: 'Otvorená otázka', icon: '✎' },
   quiz:      { label: 'Kvíz – body a rebríček',       short: 'Kvíz',            icon: '⚡' }
 };
+const BRAND_DEFAULT = { accent: '#ff5a36', screen_bg: '#14132a', font: 'modern' };
+const FONTS = {
+  modern:  { label: 'Moderné',    display: "'Bricolage Grotesque'", body: "'Inter'",   css: null },
+  classic: { label: 'Elegantné',  display: "'Fraunces'",            body: "'Inter'",   css: 'Fraunces:opsz,wght@9..144,600;9..144,800' },
+  rounded: { label: 'Priateľské', display: "'Nunito'",              body: "'Nunito'",  css: 'Nunito:wght@400;600;700;800' },
+  simple:  { label: 'Strohé',     display: "'Inter'",               body: "'Inter'",   css: null }
+};
+const ACCENTS = ['#ff5a36', '#e0457b', '#9b51e0', '#3557ff', '#0077b6', '#0f9d74', '#e0a100', '#17162a'];
+const SCREENS = ['#14132a', '#000000', '#0b1f3a', '#1f2937', '#3a0d2e', '#ffffff', '#f5f3ee', '#eef3ff'];
+function lum(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return 0;
+  const n = parseInt(m[1], 16), c = [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); });
+  return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+}
+const inkOn = hex => lum(hex) > 0.45 ? '#17162a' : '#ffffff';
+function loadFont(key) {
+  const f = FONTS[key]; if (!f || !f.css || document.getElementById('font-' + key)) return;
+  const l = document.createElement('link'); l.id = 'font-' + key; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + f.css + '&display=swap';
+  document.head.appendChild(l);
+}
+function theme() { return Object.assign({}, BRAND_DEFAULT, (S.brand && S.brand.theme) || {}); }
+function applyTheme() {
+  const t = S.ev ? theme() : BRAND_DEFAULT, r = document.documentElement.style, f = FONTS[t.font] || FONTS.modern;
+  loadFont(t.font);
+  r.setProperty('--accent', t.accent);
+  r.setProperty('--accent-ink', inkOn(t.accent));
+  r.setProperty('--display', `${f.display},'Inter',system-ui,sans-serif`);
+  r.setProperty('--font', `${f.body},system-ui,-apple-system,'Segoe UI',Roboto,sans-serif`);
+  COLORS[0] = t.accent;
+  if (S.role === 'screen') {
+    document.body.style.setProperty('--sbg', t.screen_bg);
+    document.body.classList.toggle('slight', lum(t.screen_bg) > 0.45);
+  } else { document.body.style.removeProperty('--sbg'); document.body.classList.remove('slight'); }
+  fillLogos();
+}
+function fillLogos() {
+  const logo = (S.ev && S.brand && S.brand.logo) || '';
+  $$('.ev-logo-slot').forEach(el => {
+    if (el.__logo === logo) return;
+    el.__logo = logo;
+    el.innerHTML = logo ? `<img src="${esc(logo)}" alt="Logo">` : '';
+  });
+}
 const UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
 
 function uuid() {
@@ -414,7 +481,7 @@ function resetState() {
     role: null, ev: null, key: null, q: new Map(), polls: new Map(), results: {}, mine: {}, totals: {},
     myVotes: new Set(), since: null, lastFull: 0, offset: S.offset || 0, board: null, boardAt: 0, watch: null,
     timer: null, inFlight: false, again: false, netErr: 0, prevStatus: {}, lastActive: undefined,
-    ui: { tab: 'qa', sort: 'top', qf: 'live', atab: 'qa' }
+    ui: { tab: 'qa', sort: 'top', qf: 'live', atab: 'qa' }, brand: null, draft: null
   });
 }
 resetState();
@@ -462,6 +529,7 @@ async function doSync(token) {
   S.mine = data.mine || {};
   S.totals = data.totals || {};
   if (data.my_votes) S.myVotes = new Set(data.my_votes);
+  if (data.branding) { S.brand = data.branding; applyTheme(); if (S.role === 'admin' && !S.ui.brandDirty) initBrandForm(); }
 
   // rebríček – po uzavretí kvízovej otázky, alebo priebežne pre plátno
   let needBoard = false;
@@ -487,6 +555,7 @@ function render() {
   if (S.role === 'participant') renderParticipant();
   else if (S.role === 'admin') renderAdmin();
   else if (S.role === 'screen') renderScreen();
+  fillLogos();
 }
 
 /* ---------- výsledky (spoločné) ---------- */
@@ -576,6 +645,7 @@ async function route() {
   closeModal();
   resetState();
   document.body.classList.remove('screen');
+  applyTheme();
   window.scrollTo(0, 0);
   const qs = new URLSearchParams(location.search);
   if (qs.get('e') && !location.hash) { location.replace(baseUrl() + '#/e/' + qs.get('e').toUpperCase()); return; }
@@ -733,7 +803,7 @@ async function enterParticipant(code) {
   document.title = ev.name + ' · Ozvi sa!';
   app.innerHTML = `<div class="wrap">
     <header class="topbar">
-      <div style="min-width:0"><h1 id="evName">${esc(ev.name)}</h1><div class="muted small">Kód <span class="code">${esc(ev.code)}</span> · <span class="conn">Pripájam…</span></div></div>
+      <div class="p-head"><span class="ev-logo-slot p-logo"></span><div style="min-width:0"><h1 id="evName">${esc(ev.name)}</h1><div class="muted small">Kód <span class="code">${esc(ev.code)}</span> · <span class="conn">Pripájam…</span></div></div></div>
       <button class="chip" data-act="name" title="Zmeniť meno"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span id="nameLbl"></span></button>
     </header>
     <nav class="tabs" id="ptabs">
@@ -765,7 +835,10 @@ function renderParticipantStatic() {
   const as = $('#askAs'); if (as) as.textContent = 'ako ' + (n || 'Anonym');
 }
 function updateCounter(t) { const c = $('#counter'); if (c) c.textContent = t.value.length + '/500'; }
-document.addEventListener('input', e => { if (e.target.name === 'body' && e.target.closest('#askForm')) updateCounter(e.target); });
+document.addEventListener('input', e => {
+  if (e.target.name === 'body' && e.target.closest('#askForm')) updateCounter(e.target);
+  if (e.target.type === 'color' && e.target.dataset.brand && S.draft) { S.draft[e.target.dataset.brand] = e.target.value; brandChanged(); }
+});
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && e.target.closest('#askForm')) { e.preventDefault(); e.target.closest('form').requestSubmit(); }
   if (e.key === 'Escape') closeModal();
@@ -912,7 +985,7 @@ async function enterAdmin(code, key) {
   const screenHref = `#/screen/${ev.code}/${key}`;
   app.innerHTML = `<div class="wrap wide">
     <header class="a-top">
-      <div><a class="logo" href="#/"><i>!</i>Ozvi sa!</a><h1 id="evName">${esc(ev.name)}</h1>
+      <div><a class="logo" href="#/"><i>!</i>Ozvi sa!</a><span class="ev-logo-slot a-logo"></span><h1 id="evName">${esc(ev.name)}</h1>
         <div class="muted small">Kód <span class="code" style="color:var(--accent)">${esc(ev.code)}</span> · <span class="conn">Pripájam…</span></div></div>
       <div class="row"><button class="btn" data-act="share">Pozvať účastníkov</button>
         <a class="btn primary" href="${screenHref}" target="_blank" rel="noopener">Otvoriť plátno ↗</a></div>
@@ -951,6 +1024,19 @@ async function enterAdmin(code, key) {
     <section id="a-settings" hidden>
       <div class="a-grid two">
         <div class="stack">
+          <div class="card stack" id="brandCard"><h3>Vzhľad</h3>
+            <p class="muted small" style="margin:0">Logo a farby uvidia účastníci v mobile aj všetci na plátne.</p>
+            <div><div class="small" style="font-weight:600;margin-bottom:6px">Logo</div>
+              <div class="logo-pick"><div class="lp" id="logoPrev">Bez loga</div>
+                <label class="btn sm">Nahrať logo<input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" hidden></label>
+                <button type="button" class="btn sm ghost" data-act="logoRemove" id="logoRemove" hidden>Odstrániť</button></div>
+              <p class="muted small" style="margin:6px 0 0">Najlepšie PNG alebo SVG s priehľadným pozadím. Veľké obrázky sa automaticky zmenšia.</p></div>
+            <div><div class="small" style="font-weight:600;margin-bottom:6px">Hlavná farba</div><div class="swatches"><span id="swAccent" style="display:contents"></span><input type="color" data-brand="accent" title="Vlastná farba"></div></div>
+            <div><div class="small" style="font-weight:600;margin-bottom:6px">Pozadie plátna</div><div class="swatches"><span id="swScreen" style="display:contents"></span><input type="color" data-brand="screen_bg" title="Vlastná farba"></div></div>
+            <label class="field"><span>Písmo</span><select data-brand="font">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}">${f.label}</option>`).join('')}</select></label>
+            <div><div class="small" style="font-weight:600;margin-bottom:6px">Náhľad plátna</div><div id="brandPreview"></div></div>
+            <div class="row"><button class="btn primary" data-act="saveBrand" id="saveBrand">Uložiť vzhľad</button><button class="btn ghost" data-act="resetBrand">Pôvodný vzhľad</button></div>
+          </div>
           <form class="card stack" data-form="evname"><h3>Udalosť</h3>
             <label class="field"><span>Názov</span><input name="evname" maxlength="120" value="${esc(ev.name)}"></label>
             <div><button class="btn">Uložiť názov</button></div></form>
@@ -1179,6 +1265,73 @@ async function exportData(which) {
   }
 }
 
+/* ---------- vzhľad udalosti ---------- */
+function initBrandForm() {
+  const b = S.brand || {};
+  S.draft = Object.assign({}, theme(), { logo: b.logo || '', logoChanged: false });
+  S.ui.brandDirty = false;
+  renderBrandForm();
+}
+function swatchesHTML(key, list) {
+  const cur = S.draft[key];
+  return list.map(c => `<button type="button" class="sw ${c === cur ? 'on' : ''}" style="--c:${c}" data-act="swatch" data-k="${key}" data-v="${c}" aria-label="${c}"></button>`).join('');
+}
+function renderBrandForm() {
+  const d = S.draft; if (!d || !$('#brandCard')) return;
+  setHTML($('#swAccent'), swatchesHTML('accent', ACCENTS));
+  setHTML($('#swScreen'), swatchesHTML('screen_bg', SCREENS));
+  $('#brandCard select[data-brand=font]').value = d.font;
+  $$('#brandCard input[type=color]').forEach(i => { if (document.activeElement !== i) i.value = d[i.dataset.brand]; });
+  setHTML($('#logoPrev'), d.logo ? `<img src="${esc(d.logo)}" alt="Logo">` : 'Bez loga');
+  $('#logoRemove').hidden = !d.logo;
+  const f = FONTS[d.font] || FONTS.modern, ink = inkOn(d.screen_bg);
+  loadFont(d.font);
+  setHTML($('#brandPreview'), `<div class="bp" style="background:${d.screen_bg};color:${ink};font-family:${f.body},sans-serif">
+    <div class="bp-top">${d.logo ? `<img src="${esc(d.logo)}" alt="">` : '<span></span>'}<span>kód <b style="color:${d.accent}">${esc(S.ev.code)}</b></span></div>
+    <div class="bp-title" style="font-family:${f.display},sans-serif">Ako sa vám páči dnešný program?</div>
+    <div class="bp-bar"><i style="width:72%;background:${d.accent}"></i></div>
+    <div class="bp-bar"><i style="width:41%;background:${d.accent};opacity:.6"></i></div>
+    <span class="bp-btn" style="background:${d.accent};color:${inkOn(d.accent)}">Hlasovať</span></div>`);
+}
+function brandChanged() { S.ui.brandDirty = true; renderBrandForm(); }
+const readFile = file => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Obrázok sa nedá načítať')); i.src = src; });
+async function processLogo(file) {
+  if (!file) return;
+  if (!/^image\/(png|jpeg|webp|gif|svg\+xml)$/.test(file.type)) return toast('Vyber obrázok PNG, JPG, WEBP alebo SVG', 'err');
+  try {
+    let url = await readFile(file);
+    if (file.type !== 'image/svg+xml' || url.length > 200000) {
+      const img = await loadImg(url);
+      const w = img.naturalWidth || img.width || 600, h = img.naturalHeight || img.height || 300;
+      const k = Math.min(1, 800 / w, 400 / h);
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      url = c.toDataURL('image/png');
+      if (url.length > 380000) url = c.toDataURL('image/webp', 0.88);
+      if (url.length > 380000) url = c.toDataURL('image/jpeg', 0.85);
+    }
+    if (url.length > 390000) return toast('Logo je príliš veľké, skús menší obrázok', 'err');
+    S.draft.logo = url; S.draft.logoChanged = true;
+    brandChanged();
+  } catch (e) { toast(errMsg(e), 'err'); }
+}
+async function saveBrand(btn) {
+  const d = S.draft;
+  await busy(btn, async () => {
+    const patch = { theme: { accent: d.accent, screen_bg: d.screen_bg, font: d.font } };
+    if (d.logoChanged) patch.logo = d.logo || '';
+    await rpc('admin_update_event', { p_event: S.ev.id, p_key: S.key, p_patch: patch });
+    S.brand = { theme: patch.theme, logo: d.logo || null };
+    d.logoChanged = false;
+    S.ui.brandDirty = false;
+    applyTheme();
+    toast('Vzhľad je uložený');
+    kick();
+  });
+}
+
 /* =====================================================================
    PLÁTNO (projektor)
    ===================================================================== */
@@ -1191,7 +1344,7 @@ async function enterScreen(code, key) {
   document.body.classList.add('screen');
   document.title = 'Plátno · ' + ev.name;
   app.innerHTML = `<div class="s-wrap">
-    <header class="s-top" id="sTop"><div class="s-join">Pripoj sa na <b>${esc(prettyHost())}</b> · kód <span class="code">${esc(ev.code)}</span></div><div class="s-qr" id="sQr"></div></header>
+    <header class="s-top" id="sTop"><div class="row" style="gap:2vw;flex-wrap:nowrap"><span class="ev-logo-slot s-logo"></span><div class="s-join">Pripoj sa na <b>${esc(prettyHost())}</b> · kód <span class="code">${esc(ev.code)}</span></div></div><div class="s-qr" id="sQr"></div></header>
     <main class="s-main" id="sMain"></main>
     <footer class="s-foot"><span id="evName">${esc(ev.name)}</span><span class="row"><span class="conn">Pripájam…</span><button data-act="fullscreen">⛶ Celá obrazovka</button></span></footer>
   </div>`;
@@ -1206,7 +1359,7 @@ function renderScreen() {
   if (mode !== 'welcome') makeQR($('#sQr'), joinUrl(ev.code), qrSize);
   let html = '';
   if (mode === 'welcome') {
-    html = `<div class="s-welcome"><div><h1>${esc(ev.name)}</h1>
+    html = `<div class="s-welcome"><div><span class="ev-logo-slot w-logo"></span><h1>${esc(ev.name)}</h1>
       <p>Pripoj sa na <b style="color:var(--ink)">${esc(prettyHost())}</b></p><p>a zadaj kód</p><div class="bigcode">${esc(ev.code)}</div></div>
       <div class="qrbox" id="bigQr"></div></div>${localNote()}`;
   } else if (mode === 'qa') {
@@ -1318,6 +1471,10 @@ const ACTIONS = {
   async saveRun() { await savePoll($('#editor'), true); },
   async mode(el) { await busy(el, () => adminEvent({ present_mode: el.dataset.v })); },
   share() { openShareModal(false); },
+  swatch(el) { S.draft[el.dataset.k] = el.dataset.v; brandChanged(); },
+  logoRemove() { S.draft.logo = ''; S.draft.logoChanged = true; brandChanged(); },
+  async saveBrand(el) { await saveBrand(el); },
+  resetBrand() { Object.assign(S.draft, BRAND_DEFAULT, { logo: '', logoChanged: !!(S.brand && S.brand.logo) }); brandChanged(); },
   async exportQ(el) { await busy(el, () => exportData('q')); },
   async exportP(el) { await busy(el, () => exportData('p')); },
   async delEvent(el) {
@@ -1346,6 +1503,8 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('change', async e => {
   const el = e.target;
+  if (el.id === 'logoFile') { processLogo(el.files[0]); el.value = ''; return; }
+  if (el.dataset.brand && S.draft) { S.draft[el.dataset.brand] = el.value; brandChanged(); return; }
   if (el.dataset.toggle) {
     const patch = { [el.dataset.toggle]: el.checked };
     try { await adminEvent(patch); toast('Uložené'); } catch (err) { el.checked = !el.checked; toast(errMsg(err), 'err'); }
