@@ -1440,7 +1440,16 @@ function updateFs() {
   document.documentElement.classList.toggle('fs', fs && S.role === 'screen');
   if (!fs && document.pointerLockElement) document.exitPointerLock();
 }
-document.addEventListener('fullscreenchange', updateFs);
+document.addEventListener('fullscreenchange', () => {
+  updateFs();
+  // po dokončení prechodu do celej obrazovky (na Macu s animáciou) kurzor uzamkni znova
+  if (document.fullscreenElement && S.role === 'screen') [100, 700, 1500].forEach(t => setTimeout(() => { if (!document.pointerLockElement && document.fullscreenElement) hideCursor(); }, t));
+});
+document.addEventListener('pointerlockchange', () => {
+  // ak prehliadač zámok uvoľnil sám hneď po zapnutí (nie klávesom Esc), skús ešte raz
+  if (!document.pointerLockElement && document.fullscreenElement && S.wantLock && Date.now() - S.wantLock < 3000) setTimeout(hideCursor, 200);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') S.wantLock = 0; });
 window.addEventListener('resize', updateFs);
 window.addEventListener('resize', () => { if (S.role === 'screen') { $$('#sQr,#bigQr').forEach(e => e.__qr = null); renderScreen(); } });
 
@@ -1542,8 +1551,9 @@ const ACTIONS = {
   fullscreen() {
     if (document.fullscreenElement) { document.exitFullscreen(); return; }
     const el = document.documentElement;
-    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
-    hideCursor();
+    S.wantLock = Date.now();
+    if (el.requestFullscreen) el.requestFullscreen().then(() => setTimeout(hideCursor, 150)).catch(() => hideCursor());
+    else hideCursor();
   }
 };
 document.addEventListener('click', e => {
