@@ -927,7 +927,8 @@ async function enterAdmin(code, key) {
     <section id="a-qa">
       <div class="toolbar">
         <div class="seg" id="qfilter"></div>
-        <label class="check small"><input type="checkbox" data-toggle="qa_open"><span>Prijímať otázky</span></label>
+        <div class="row"><span id="qaScreenBtn"></span>
+        <label class="check small"><input type="checkbox" data-toggle="qa_open"><span>Prijímať otázky</span></label></div>
       </div>
       <div class="qlist" id="aqList"></div>
     </section>
@@ -992,6 +993,9 @@ function renderAdmin() {
   setHTML($('#qfilter'), Object.keys(labels).filter(k => k !== 'pending' || ev.moderation || groups.pending.length)
     .map(k => `<button data-act="qf" data-v="${k}" class="${S.ui.qf === k ? 'on' : ''}">${labels[k]} ${groups[k].length ? `<span class="${k === 'pending' ? 'count' : 'muted'}">${groups[k].length}</span>` : ''}</button>`).join(''));
   setHTML($('#pendCount'), groups.pending.length ? `<span class="count">${groups.pending.length}</span>` : '');
+  setHTML($('#qaScreenBtn'), ev.present_mode === 'qa'
+    ? '<span class="badge accent">Otázky sú na plátne</span>'
+    : '<button class="btn sm primary" data-act="mode" data-v="qa">Zobraziť otázky na plátne</button>');
   const list = (groups[S.ui.qf] || []).sort((a, b) => (b.highlighted - a.highlighted) || (b.votes - a.votes) || a.created_at.localeCompare(b.created_at));
   setHTML($('#aqList'), list.length ? list.map(adminQCard).join('') : `<div class="card empty"><b>${{
     pending: 'Nič nečaká na schválenie', live: 'Zatiaľ žiadne otázky', answered: 'Žiadne zodpovedané otázky', hidden: 'Žiadne skryté otázky' }[S.ui.qf]}</b>${S.ui.qf === 'live' ? 'Pošli účastníkom odkaz alebo kód ' + esc(ev.code) + '.' : ''}</div>`);
@@ -1278,7 +1282,12 @@ const ACTIONS = {
     await busy(el, async () => {
       await rpc('admin_question', { p_event: S.ev.id, p_key: S.key, p_question: el.dataset.id, p_patch: patch });
       const q = S.q.get(el.dataset.id);
-      if (patch.highlighted) for (const o of S.q.values()) o.highlighted = false;
+      if (patch.highlighted) {
+        for (const o of S.q.values()) o.highlighted = false;
+        // zvýraznená otázka sa hneď ukáže na plátne
+        if (S.ev.present_mode !== 'qa') await rpc('admin_update_event', { p_event: S.ev.id, p_key: S.key, p_patch: { present_mode: 'qa' } });
+        S.ev.present_mode = 'qa';
+      }
       if (q) { Object.assign(q, patch); if (patch.status && patch.status !== 'visible') q.highlighted = false; if (q.status === 'deleted') S.q.delete(q.id); }
       render();
       kick();
