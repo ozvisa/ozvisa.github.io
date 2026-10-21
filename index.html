@@ -299,6 +299,22 @@ body.screen .cloud{min-height:40vh;gap:.6vw 2vw}
 .s-cd .countdown{flex:1;height:clamp(20px,2.4vw,48px);margin:0}
 .s-cd .cd-num{line-height:clamp(20px,2.4vw,48px);font-size:clamp(14px,1.6vw,32px)}
 .s-cd .ans{font-size:clamp(16px,1.6vw,32px);color:var(--muted);white-space:nowrap}
+/* stupne víťazov */
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:2vw;flex:1;min-height:0}
+.pd{width:22vw;max-width:360px;display:flex;flex-direction:column;align-items:center}
+.pd-who{min-height:13vh;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;margin-bottom:1.4vw;text-align:center}
+.pd-name{font-family:var(--display);font-weight:800;font-size:clamp(20px,3vw,60px);line-height:1.05;max-width:22vw;overflow-wrap:anywhere}
+.pd-pts{font-size:clamp(14px,1.6vw,32px);color:var(--muted);margin-top:.5vw;font-variant-numeric:tabular-nums}
+.pd-q{font-family:var(--display);font-weight:800;font-size:clamp(30px,4.4vw,88px);color:var(--muted);opacity:.45}
+.pd-block{width:100%;border-radius:1.2vw 1.2vw 0 0;display:grid;place-items:start center;padding-top:1.4vw;font-family:var(--display);font-weight:800;font-size:clamp(30px,5vw,100px);color:rgba(255,255,255,.92);box-shadow:inset 0 -1.2vw 2vw rgba(0,0,0,.12)}
+.pd1 .pd-block{height:36vh;background:linear-gradient(#f9d35a,#dea100)}
+.pd2 .pd-block{height:25vh;background:linear-gradient(#dfe4ea,#9ea7b2)}
+.pd3 .pd-block{height:17vh;background:linear-gradient(#e8ad7e,#b5713d)}
+.pd1.on .pd-name{color:var(--accent)}
+.pd.new .pd-who{animation:pdpop .7s cubic-bezier(.2,1.5,.4,1) both}
+.pd1.new .pd-block{animation:pdglow 1.6s ease-out both}
+@keyframes pdpop{from{opacity:0;transform:translateY(3vw) scale(.4)}}
+@keyframes pdglow{0%{filter:brightness(1.6)}100%{filter:none}}
 body.screen .board li{padding:1vw 0;font-size:clamp(18px,2vw,40px)}
 body.screen .board .rk{width:2em;height:2em;font-size:.75em}
 
@@ -631,6 +647,15 @@ function boardHTML(b, limit = 10) {
   if (!b || !b.top || !b.top.length) return `<div class="empty">Rebríček sa zobrazí po prvej vyhodnotenej kvízovej otázke.</div>`;
   return `<ol class="board">${b.top.slice(0, limit).map(r => `<li class="${r.me && S.role === 'participant' ? 'me' : ''}">
     <span class="rk">${r.rank}</span><span class="nm">${esc(r.name)}</span><span class="pt">${r.points} b</span></li>`).join('')}</ol>`;
+}
+function podiumHTML(b, step) {
+  const top = (b && b.top) || [];
+  const slot = place => {
+    const r = top[place - 1], shown = step >= 4 - place, isNew = step === 4 - place;
+    const who = shown ? (r ? `<div class="pd-name">${esc(r.name)}</div><div class="pd-pts">${r.points} b</div>` : '<div class="pd-q">—</div>') : '<div class="pd-q">?</div>';
+    return `<div class="pd pd${place} ${shown ? 'on' : ''} ${isNew ? 'new' : ''}"><div class="pd-who">${who}</div><div class="pd-block">${place}</div></div>`;
+  };
+  return `<div class="s-title" style="text-align:center">${step >= 3 ? 'Víťazi kvízu' : 'A víťazmi sú…'}</div><div class="podium">${slot(2)}${slot(1)}${slot(3)}</div>`;
 }
 function countdownHTML(p) {
   const end = new Date(p.activated_at).getTime() + p.time_limit * 1000;
@@ -1113,7 +1138,6 @@ function renderAdmin() {
   $('#evName').textContent = ev.name;
   $$('#atabs button').forEach(b => b.classList.toggle('on', b.dataset.v === S.ui.atab));
   ['qa', 'polls', 'screen', 'settings'].forEach(t => $('#a-' + t).hidden = S.ui.atab !== t);
-  $$('[data-toggle]').forEach(c => { c.checked = !!ev[c.dataset.toggle]; });
 
   // otázky
   const all = [...S.q.values()];
@@ -1140,7 +1164,16 @@ function renderAdmin() {
   const nxt = nextPoll();
   setHTML($('#nextBtn'), nxt ? `<button class="btn dark" data-act="pa" data-id="${nxt.id}" data-v="activate">▶ Spustiť ďalšie: ${esc(nxt.title.length > 40 ? nxt.title.slice(0, 40) + '…' : nxt.title)}</button>` : '');
   setHTML($('#apList'), polls.length ? polls.map(adminPollCard).join('') : `<div class="card empty"><b>Zatiaľ žiadne hlasovania</b>Priprav si ankety a kvízové otázky vopred a počas akcie ich len spúšťaj.</div>`);
-  setHTML($('#aBoard'), hasQuiz() ? `<div class="card" style="margin-top:14px"><div class="row spread"><h3>Rebríček kvízu</h3><button class="btn sm" data-act="mode" data-v="leaderboard">Zobraziť na plátne</button></div><div style="margin-top:10px">${boardHTML(S.board)}</div></div>` : '');
+  const step = ev.podium_step || 0;
+  const podiumCtl = ev.podium_enabled ? `<div class="row" style="margin-top:12px">
+      ${ev.present_mode === 'podium' ? '<span class="badge accent">Stupne víťazov sú na plátne</span>' : '<button class="btn sm primary" data-act="podiumShow">Zobraziť stupne víťazov</button>'}
+      ${step < 3 ? `<button class="btn sm dark" data-act="podiumNext">${['▶ Odhaliť 3. miesto', '▶ Odhaliť 2. miesto', '▶ Odhaliť víťaza'][step]}</button>` : '<span class="badge green">Víťaz je odhalený 🏆</span>'}
+      ${step > 0 ? '<button class="btn sm ghost" data-act="podiumReset">Skryť mená a začať odznova</button>' : ''}</div>` : '';
+  setHTML($('#aBoard'), hasQuiz() ? `<div class="card" style="margin-top:14px"><div class="row spread"><h3>Rebríček kvízu</h3><button class="btn sm" data-act="mode" data-v="leaderboard">Zobraziť na plátne</button></div>
+    <div style="margin-top:10px">${boardHTML(S.board)}</div>
+    <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px">
+      <label class="check small"><input type="checkbox" data-toggle="podium_enabled"><span><b>Vyhodnotenie so stupňami víťazov</b><br><span class="muted">Na plátne postupne odhalíš 3., 2. a nakoniec 1. miesto. Spúšťaš to ty, nič sa nezobrazí samo.</span></span></label>
+      ${podiumCtl}</div></div>` : '');
 
   // plátno
   const modes = [
@@ -1149,10 +1182,12 @@ function renderAdmin() {
     ['poll', 'Hlasovanie', S.polls.get(ev.present_poll) ? esc(S.polls.get(ev.present_poll).title) : 'Vyber hlasovanie nižšie'],
     ['leaderboard', 'Rebríček', 'Najlepší hráči kvízu']
   ];
+  if (ev.podium_enabled) modes.push(['podium', 'Stupne víťazov', 'Postupné odhalenie prvej trojice']);
   setHTML($('#modes'), modes.map(([v, t, d]) => `<button class="mode ${ev.present_mode === v ? 'on' : ''}" data-act="mode" data-v="${v}"><b>${t}</b><span>${d}</span></button>`).join(''));
   const shown = polls.filter(p => p.status !== 'draft');
   setHTML($('#modePoll'), shown.length ? `<label class="field"><span>Hlasovanie na plátne</span><select data-change="presentPoll">
     <option value="">— vyber —</option>${shown.map(p => `<option value="${p.id}" ${ev.present_poll === p.id ? 'selected' : ''}>${esc(KINDS[p.kind].short + ': ' + p.title)}</option>`).join('')}</select></label>` : '');
+  $$('[data-toggle]').forEach(c => { c.checked = !!ev[c.dataset.toggle]; });
 }
 function nextPoll() {
   const polls = sortedPolls();
@@ -1433,6 +1468,8 @@ function renderScreen() {
           <div class="s-quiz">${p.options.map((o, i) => `<div class="qbtn" style="--c:${COLORS[i % 10]}"><i class="qletter">${LET[i]}</i>${esc(o)}</div>`).join('')}</div>`;
       } else html += resultsHTML(p, res || { total: 0, counts: [], words: [], texts: [] }, { big: true });
     }
+  } else if (mode === 'podium') {
+    html = podiumHTML(S.board, ev.podium_step || 0);
   } else if (mode === 'leaderboard') {
     html = `<div class="s-title">Rebríček</div>${boardHTML(S.board, 8)}`;
   }
@@ -1530,6 +1567,9 @@ const ACTIONS = {
   async saveRun() { await savePoll($('#editor'), true); },
   async mode(el) { await busy(el, () => adminEvent({ present_mode: el.dataset.v })); },
   share() { openShareModal(false); },
+  async podiumShow(el) { await busy(el, () => adminEvent({ present_mode: 'podium' })); },
+  async podiumNext(el) { await busy(el, async () => { await loadBoard(); await adminEvent({ present_mode: 'podium', podium_step: Math.min(3, (S.ev.podium_step || 0) + 1) }); }); },
+  async podiumReset(el) { await busy(el, () => adminEvent({ podium_step: 0 })); },
   swatch(el) { S.draft[el.dataset.k] = el.dataset.v; brandChanged(); },
   logoRemove() { S.draft.logo = ''; S.draft.logoChanged = true; brandChanged(); },
   async saveBrand(el) { await saveBrand(el); },
