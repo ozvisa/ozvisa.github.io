@@ -661,7 +661,6 @@ async function route() {
   resetState();
   document.body.classList.remove('screen', 'fs');
   document.documentElement.classList.remove('fs');
-  if (document.pointerLockElement) document.exitPointerLock();
   applyTheme();
   window.scrollTo(0, 0);
   const qs = new URLSearchParams(location.search);
@@ -1426,30 +1425,13 @@ function renderScreen() {
   setHTML($('#sMain'), html);
   if (mode === 'welcome') makeQR($('#bigQr'), joinUrl(ev.code), Math.round(Math.min(innerWidth * 0.3, innerHeight * 0.55)));
 }
-// uzamknutie kurzora ho skryje hneď, aj keď sa myš nepohne (Esc ho vráti)
-function hideCursor() {
-  try { const r = document.documentElement.requestPointerLock && document.documentElement.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch {}
-}
-document.addEventListener('click', e => {
-  if (document.body.classList.contains('fs') && !document.pointerLockElement && !e.target.closest('[data-act]')) hideCursor();
-});
 function updateFs() {
   // celá obrazovka cez tlačidlo (Fullscreen API) aj cez kláves F11 / zelené tlačidlo v okne
   const fs = !!document.fullscreenElement || (Math.abs(innerHeight - screen.height) < 3 && Math.abs(innerWidth - screen.width) < 3);
   document.body.classList.toggle('fs', fs && S.role === 'screen');
   document.documentElement.classList.toggle('fs', fs && S.role === 'screen');
-  if (!fs && document.pointerLockElement) document.exitPointerLock();
 }
-document.addEventListener('fullscreenchange', () => {
-  updateFs();
-  // po dokončení prechodu do celej obrazovky (na Macu s animáciou) kurzor uzamkni znova
-  if (document.fullscreenElement && S.role === 'screen') [100, 700, 1500].forEach(t => setTimeout(() => { if (!document.pointerLockElement && document.fullscreenElement) hideCursor(); }, t));
-});
-document.addEventListener('pointerlockchange', () => {
-  // ak prehliadač zámok uvoľnil sám hneď po zapnutí (nie klávesom Esc), skús ešte raz
-  if (!document.pointerLockElement && document.fullscreenElement && S.wantLock && Date.now() - S.wantLock < 3000) setTimeout(hideCursor, 200);
-});
-document.addEventListener('keydown', e => { if (e.key === 'Escape') S.wantLock = 0; });
+document.addEventListener('fullscreenchange', updateFs);
 window.addEventListener('resize', updateFs);
 window.addEventListener('resize', () => { if (S.role === 'screen') { $$('#sQr,#bigQr').forEach(e => e.__qr = null); renderScreen(); } });
 
@@ -1551,9 +1533,7 @@ const ACTIONS = {
   fullscreen() {
     if (document.fullscreenElement) { document.exitFullscreen(); return; }
     const el = document.documentElement;
-    S.wantLock = Date.now();
-    if (el.requestFullscreen) el.requestFullscreen().then(() => setTimeout(hideCursor, 150)).catch(() => hideCursor());
-    else hideCursor();
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
   }
 };
 document.addEventListener('click', e => {
