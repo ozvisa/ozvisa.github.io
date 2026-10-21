@@ -1380,7 +1380,7 @@ async function enterScreen(code, key) {
   updateFs();
   document.title = 'Plátno · ' + ev.name;
   app.innerHTML = `<div class="s-wrap">
-    <header class="s-top" id="sTop"><div class="row" style="gap:2vw;flex-wrap:nowrap"><span class="ev-logo-slot s-logo"></span><div class="s-join">Pripoj sa na <b>${esc(prettyHost())}</b> · kód <span class="code ev-code">${esc(ev.code)}</span></div></div><div class="s-qr" id="sQr"></div></header>
+    <header class="s-top" id="sTop"><div class="row" style="gap:2vw;flex-wrap:nowrap"><span class="ev-logo-slot s-logo"></span><div class="s-join">Ozvi sa na <b>${esc(prettyHost())}</b> · kód <span class="code ev-code">${esc(ev.code)}</span></div></div><div class="s-qr" id="sQr"></div></header>
     <main class="s-main" id="sMain"></main>
     <footer class="s-foot"><span id="evName">${esc(ev.name)}</span><span class="row"><span class="conn">Pripájam…</span><button data-act="fullscreen">⛶ Celá obrazovka</button></span></footer>
   </div>`;
@@ -1396,7 +1396,7 @@ function renderScreen() {
   let html = '';
   if (mode === 'welcome') {
     html = `<div class="s-welcome"><div><span class="ev-logo-slot w-logo"></span><h1>${esc(ev.name)}</h1>
-      <p>Pripoj sa na <b style="color:var(--ink)">${esc(prettyHost())}</b></p><p>a zadaj kód</p><div class="bigcode">${esc(ev.code)}</div></div>
+      <p>Ozvi sa na <b style="color:var(--ink)">${esc(prettyHost())}</b></p><p>a zadaj kód</p><div class="bigcode">${esc(ev.code)}</div></div>
       <div class="qrbox" id="bigQr"></div></div>${localNote()}`;
   } else if (mode === 'qa') {
     const qs = [...S.q.values()].filter(q => q.status === 'visible');
