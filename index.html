@@ -778,6 +778,13 @@ const FORMS = {
     if (!text) return;
     await submitResponse(f.querySelector('button'), p, { text }, () => { f.text.value = ''; });
   },
+  async quizname(f) {
+    const n = f.elements.nick.value.trim().slice(0, 40);
+    if (!n) return toast('Zadaj prezývku', 'err');
+    store.set('name', n);
+    renderParticipantStatic();
+    render();
+  },
   async name(f) {
     const n = f.elements.nick.value.trim().slice(0, 40);
     store.set('name', n);
@@ -971,6 +978,13 @@ function quizBody(p, mine) {
   const nameHint = !myName() ? `<p class="muted small" style="text-align:center;margin-top:12px">Hráš ako Anonym. <a href="#" data-act="name">Nastav si prezývku</a>, aby si sa ukázal(a) v rebríčku.</p>` : '';
   if (p.status === 'active') {
     const expired = serverNow() > new Date(p.activated_at).getTime() + p.time_limit * 1000;
+    // bez prezývky sa do kvízu nedá zapojiť – rebríček musí mať mená
+    if (picked == null && !myName() && !expired) {
+      return countdownHTML(p) + `<form data-form="quizname" class="stack">
+        <p style="margin:0;font-weight:600">Pred odpoveďou zadaj prezývku, aby sme vedeli, kto vyhral.</p>
+        <input name="nick" maxlength="40" placeholder="Tvoja prezývka" autocomplete="nickname" required>
+        <button class="btn primary block">Pokračovať</button></form>`;
+    }
     return countdownHTML(p) + `<div class="quiz-grid">${p.options.map((o, i) => `
       <button class="qbtn ${picked != null ? (picked === i ? 'picked' : 'dim') : ''}" style="--c:${COLORS[i % 10]}"
         data-act="quiz" data-id="${p.id}" data-v="${i}" ${picked != null || expired ? 'disabled' : ''}><i class="qletter">${LET[i]}</i>${esc(o)}</button>`).join('')}</div>
@@ -1465,6 +1479,7 @@ const ACTIONS = {
   },
   async rate(el) { await submitResponse(null, S.polls.get(el.dataset.id), { rating: +el.dataset.v }); },
   async quiz(el) {
+    if (!myName()) { render(); return; }
     $$('.qbtn').forEach(b => b.disabled = true);
     await submitResponse(null, S.polls.get(el.dataset.id), { choices: [+el.dataset.v] });
     render();
