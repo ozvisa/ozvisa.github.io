@@ -234,7 +234,7 @@ body.screen{--sbg:#14132a;--ink:#f4f2ec;background:var(--sbg);color:var(--ink);-
 body.screen.slight{--ink:#17162a}
 /* celá obrazovka: bez spodnej lišty a bez kurzora */
 body.screen.fs .s-foot{display:none}
-body.screen.fs,body.screen.fs *{cursor:none!important}
+html.fs,html.fs *,body.screen.fs,body.screen.fs *{cursor:none!important}
 body.screen.fs .s-wrap{padding-bottom:3vw}
 body.screen.slight .s-qr,body.screen.slight .qrbox{box-shadow:0 0 0 1px var(--line)}
 .ev-logo-slot:empty{display:none}
@@ -660,6 +660,8 @@ async function route() {
   closeModal();
   resetState();
   document.body.classList.remove('screen', 'fs');
+  document.documentElement.classList.remove('fs');
+  if (document.pointerLockElement) document.exitPointerLock();
   applyTheme();
   window.scrollTo(0, 0);
   const qs = new URLSearchParams(location.search);
@@ -1424,10 +1426,19 @@ function renderScreen() {
   setHTML($('#sMain'), html);
   if (mode === 'welcome') makeQR($('#bigQr'), joinUrl(ev.code), Math.round(Math.min(innerWidth * 0.3, innerHeight * 0.55)));
 }
+// uzamknutie kurzora ho skryje hneď, aj keď sa myš nepohne (Esc ho vráti)
+function hideCursor() {
+  try { const r = document.documentElement.requestPointerLock && document.documentElement.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch {}
+}
+document.addEventListener('click', e => {
+  if (document.body.classList.contains('fs') && !document.pointerLockElement && !e.target.closest('[data-act]')) hideCursor();
+});
 function updateFs() {
   // celá obrazovka cez tlačidlo (Fullscreen API) aj cez kláves F11 / zelené tlačidlo v okne
   const fs = !!document.fullscreenElement || (Math.abs(innerHeight - screen.height) < 3 && Math.abs(innerWidth - screen.width) < 3);
   document.body.classList.toggle('fs', fs && S.role === 'screen');
+  document.documentElement.classList.toggle('fs', fs && S.role === 'screen');
+  if (!fs && document.pointerLockElement) document.exitPointerLock();
 }
 document.addEventListener('fullscreenchange', updateFs);
 window.addEventListener('resize', updateFs);
@@ -1529,8 +1540,10 @@ const ACTIONS = {
     });
   },
   fullscreen() {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    hideCursor();
   }
 };
 document.addEventListener('click', e => {
