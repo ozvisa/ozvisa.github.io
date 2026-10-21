@@ -157,7 +157,7 @@ label.field>span{display:block;margin-bottom:6px}
 .avg{font-family:var(--display);font-size:56px;font-weight:800;line-height:1}
 .avg small{display:block;font-size:22px;color:#f5b301;letter-spacing:2px;margin-top:6px}
 .rating-res .bars{flex:1;min-width:200px}
-.cloud{display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:center;align-items:center;padding:12px 0;min-height:120px}
+.cloud{display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:center;align-items:center;align-content:center;padding:12px 0;min-height:120px}
 .cloud span{font-family:var(--display);font-weight:700;line-height:1.1;color:var(--c)}
 .texts{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
 .text-card{background:var(--surface2);border-radius:12px;padding:12px 14px;word-wrap:break-word}
@@ -623,15 +623,25 @@ function resultsHTML(p, res, o = {}) {
   if (p.kind === 'wordcloud') {
     const words = res.words || [];
     if (!words.length) return `<div class="empty">Zatiaľ žiadne slová</div>`;
-    const max = words[0].n, min = o.big ? 1.4 : 0.95, span = o.big ? 4.2 : 2.3;
+    // každé slovo má vlastnú (stálu) veľkosť a farbu podľa textu; opakované slová rastú
     const unit = o.big ? 'vw' : 'em';
+    const base = o.big ? 1.6 : 1.0, cap = o.big ? 7.5 : 3.6;
+    const raw = words.map(w => {
+      const h = Math.abs(hashStr(w.w));
+      const jitter = 0.7 + (h % 1000) / 1000 * 0.95;           // 0.7 – 1.65 × základnej veľkosti
+      return { w, h, f: jitter * Math.pow(w.n, 0.7) };           // každý ďalší rovnaký hlas zväčší slovo
+    });
+    const maxF = Math.max(...raw.map(r => r.f));
+    const k = Math.min(1, (cap / base) / maxF);                    // aby sa najväčšie slovo zmestilo
     // väčšie slová do stredu
+    raw.sort((a, b) => b.f - a.f);
     const arr = [];
-    words.forEach((w, i) => { if (i % 2) arr.push(w); else arr.unshift(w); });
-    return `<div class="cloud">${arr.map(w => {
-      const size = min + span * Math.pow(w.n / max, 0.75);
-      const c = COLORS[Math.abs(hashStr(w.w)) % 7];
-      return `<span style="font-size:${size.toFixed(2)}${unit};--c:${c}" title="${w.n}×">${esc(w.w)}</span>`;
+    raw.forEach((r, i) => { if (i % 2) arr.push(r); else arr.unshift(r); });
+    return `<div class="cloud">${arr.map(r => {
+      const size = Math.max(base * 0.75, base * r.f * k);
+      const c = COLORS[(r.h >> 3) % 9];
+      const wt = [600, 700, 800][(r.h >> 7) % 3];
+      return `<span style="font-size:${size.toFixed(2)}${unit};font-weight:${wt};--c:${c}" title="${r.w.n}×">${esc(r.w.w)}</span>`;
     }).join('')}</div>${totalLine(total, o)}`;
   }
   if (p.kind === 'open') {
