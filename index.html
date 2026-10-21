@@ -232,6 +232,10 @@ label.field>span{display:block;margin-bottom:6px}
 /* screen (projector) */
 body.screen{--sbg:#14132a;--ink:#f4f2ec;background:var(--sbg);color:var(--ink);--surface:color-mix(in srgb,var(--ink) 7%,var(--sbg));--surface2:color-mix(in srgb,var(--ink) 13%,var(--sbg));--muted:color-mix(in srgb,var(--ink) 62%,var(--sbg));--line:color-mix(in srgb,var(--ink) 18%,var(--sbg));--accent-soft:color-mix(in srgb,var(--accent) 18%,var(--sbg));--green-soft:color-mix(in srgb,#0f9d74 22%,var(--sbg));overflow:hidden}
 body.screen.slight{--ink:#17162a}
+/* celá obrazovka: bez spodnej lišty a bez kurzora */
+body.screen.fs .s-foot{display:none}
+body.screen.fs,body.screen.fs *{cursor:none!important}
+body.screen.fs .s-wrap{padding-bottom:3vw}
 body.screen.slight .s-qr,body.screen.slight .qrbox{box-shadow:0 0 0 1px var(--line)}
 .ev-logo-slot:empty{display:none}
 .ev-logo-slot img{display:block;object-fit:contain;max-height:44px;max-width:160px}
@@ -655,7 +659,7 @@ async function route() {
   stopSync();
   closeModal();
   resetState();
-  document.body.classList.remove('screen');
+  document.body.classList.remove('screen', 'fs');
   applyTheme();
   window.scrollTo(0, 0);
   const qs = new URLSearchParams(location.search);
@@ -1372,6 +1376,7 @@ async function enterScreen(code, key) {
   S.ev = ev;
   S.key = key;
   document.body.classList.add('screen');
+  updateFs();
   document.title = 'Plátno · ' + ev.name;
   app.innerHTML = `<div class="s-wrap">
     <header class="s-top" id="sTop"><div class="row" style="gap:2vw;flex-wrap:nowrap"><span class="ev-logo-slot s-logo"></span><div class="s-join">Pripoj sa na <b>${esc(prettyHost())}</b> · kód <span class="code ev-code">${esc(ev.code)}</span></div></div><div class="s-qr" id="sQr"></div></header>
@@ -1419,6 +1424,13 @@ function renderScreen() {
   setHTML($('#sMain'), html);
   if (mode === 'welcome') makeQR($('#bigQr'), joinUrl(ev.code), Math.round(Math.min(innerWidth * 0.3, innerHeight * 0.55)));
 }
+function updateFs() {
+  // celá obrazovka cez tlačidlo (Fullscreen API) aj cez kláves F11 / zelené tlačidlo v okne
+  const fs = !!document.fullscreenElement || (Math.abs(innerHeight - screen.height) < 3 && Math.abs(innerWidth - screen.width) < 3);
+  document.body.classList.toggle('fs', fs && S.role === 'screen');
+}
+document.addEventListener('fullscreenchange', updateFs);
+window.addEventListener('resize', updateFs);
 window.addEventListener('resize', () => { if (S.role === 'screen') { $$('#sQr,#bigQr').forEach(e => e.__qr = null); renderScreen(); } });
 
 /* =====================================================================
