@@ -365,7 +365,8 @@ function lum(hex) {
   const n = parseInt(m[1], 16), c = [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); });
   return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
 }
-const inkOn = hex => lum(hex) > 0.45 ? '#17162a' : '#ffffff';
+// biely text, kým je na pozadí dobre čitateľný; na svetlých farbách tmavý
+const inkOn = hex => 1.05 / (lum(hex) + .05) >= 2.9 ? '#ffffff' : '#17162a';
 function loadFont(key) {
   const f = FONTS[key]; if (!f || !f.css || document.getElementById('font-' + key)) return;
   const l = document.createElement('link'); l.id = 'font-' + key; l.rel = 'stylesheet';
@@ -383,7 +384,7 @@ function applyTheme() {
   COLORS[0] = t.accent;
   if (S.role === 'screen') {
     document.body.style.setProperty('--sbg', t.screen_bg);
-    document.body.classList.toggle('slight', lum(t.screen_bg) > 0.45);
+    document.body.classList.toggle('slight', inkOn(t.screen_bg) !== '#ffffff');
   } else { document.body.style.removeProperty('--sbg'); document.body.classList.remove('slight'); }
   fillLogos();
 }
