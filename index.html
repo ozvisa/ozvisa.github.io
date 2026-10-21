@@ -523,7 +523,17 @@ async function doSync(token) {
   S.offset = now - Date.now();
   S.since = new Date(now - 3000).toISOString();
   if (full) { S.q.clear(); S.polls.clear(); S.lastFull = Date.now(); }
+  const oldCode = S.ev.code;
   Object.assign(S.ev, data.event);
+  if (oldCode !== S.ev.code) {
+    $$('.ev-code').forEach(el => { el.textContent = S.ev.code; });
+    // adresa v prehliadači s novým kódom, bez znovunačítania stránky
+    const r = parseRoute();
+    if (r.a && r.a.toUpperCase() === (oldCode || '').toUpperCase()) {
+      history.replaceState(null, '', baseUrl() + '#/' + [r.view, S.ev.code, r.b].filter(Boolean).join('/'));
+    }
+    if (S.role === 'participant') toast('Organizátor zmenil kód udalosti na ' + S.ev.code);
+  }
   for (const q of data.questions) { if (q.status === 'deleted') S.q.delete(q.id); else S.q.set(q.id, q); }
   for (const p of data.polls) { if (p.status === 'deleted') S.polls.delete(p.id); else S.polls.set(p.id, p); }
   S.results = data.results || {};
@@ -771,6 +781,19 @@ const FORMS = {
     toast(n ? 'Vystupuješ ako ' + n : 'Vystupuješ anonymne');
   },
   async poll(f) { await savePoll(f, false); },
+  async evcode(f) {
+    const code = f.elements.evcode.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code === S.ev.code) return toast('Toto je aktuálny kód');
+    if (code.length < 3 || code.length > 20) return toast('Kód musí mať 3 až 20 znakov (písmená bez diakritiky a čísla)', 'err');
+    if (!confirm('Zmeniť kód z ' + S.ev.code + ' na ' + code + '?\n\nStarý kód a staré QR kódy prestanú fungovať.')) return;
+    await busy(f.querySelector('button'), async () => {
+      await rpc('admin_update_event', { p_event: S.ev.id, p_key: S.key, p_patch: { code } });
+      const list = store.get('events', []).map(e => e.code === S.ev.code ? { ...e, code } : e);
+      store.set('events', list);
+      sessionStorage.setItem('ozvi:codeChanged', code);
+      location.hash = `#/admin/${code}/${S.key}`;
+    });
+  },
   async evname(f) {
     await busy(f.querySelector('button'), async () => { await adminEvent({ name: f.elements.evname.value }); toast('Uložené'); });
   }
@@ -804,7 +827,7 @@ async function enterParticipant(code) {
   document.title = ev.name + ' · Ozvi sa!';
   app.innerHTML = `<div class="wrap">
     <header class="topbar">
-      <div class="p-head"><span class="ev-logo-slot p-logo"></span><div style="min-width:0"><h1 id="evName">${esc(ev.name)}</h1><div class="muted small">Kód <span class="code">${esc(ev.code)}</span> · <span class="conn">Pripájam…</span></div></div></div>
+      <div class="p-head"><span class="ev-logo-slot p-logo"></span><div style="min-width:0"><h1 id="evName">${esc(ev.name)}</h1><div class="muted small">Kód <span class="code ev-code">${esc(ev.code)}</span> · <span class="conn">Pripájam…</span></div></div></div>
       <button class="chip" data-act="name" title="Zmeniť meno"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span id="nameLbl"></span></button>
     </header>
     <nav class="tabs" id="ptabs">
@@ -1041,6 +1064,11 @@ async function enterAdmin(code, key) {
           <form class="card stack" data-form="evname"><h3>Udalosť</h3>
             <label class="field"><span>Názov</span><input name="evname" maxlength="120" value="${esc(ev.name)}"></label>
             <div><button class="btn">Uložiť názov</button></div></form>
+          <form class="card stack" data-form="evcode"><h3>Kód udalosti</h3>
+            <p class="muted small" style="margin:0">Kód, ktorý účastníci zadávajú na úvodnej stránke. Môžeš si zvoliť vlastný, napríklad <b>TOP26</b>.</p>
+            <label class="field"><span>Kód</span><input name="evcode" maxlength="20" value="${esc(ev.code)}" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;font-family:ui-monospace,Menlo,monospace;letter-spacing:.08em;font-weight:700"></label>
+            <p class="muted small" style="margin:0">3 až 20 znakov, len písmená bez diakritiky a čísla. Po zmene prestane fungovať starý kód aj vytlačené QR kódy, účastníci, ktorí už sú pripojení, pokračujú ďalej.</p>
+            <div><button class="btn">Zmeniť kód</button></div></form>
           <div class="card stack"><h3>Otázky z publika</h3>
             <label class="check"><input type="checkbox" data-toggle="qa_open"><span><b>Prijímať otázky</b><br><span class="muted small">Keď je vypnuté, účastníci nemôžu posielať nové otázky.</span></span></label>
             <label class="check"><input type="checkbox" data-toggle="moderation"><span><b>Schvaľovať otázky</b><br><span class="muted small">Nové otázky uvidíš najprv len ty a zverejníš ich jedným klikom.</span></span></label></div>
@@ -1058,6 +1086,7 @@ async function enterAdmin(code, key) {
       </div>
     </section></div>`;
   if (sessionStorage.getItem('ozvi:new') === ev.code) { sessionStorage.removeItem('ozvi:new'); openShareModal(true); }
+  if (sessionStorage.getItem('ozvi:codeChanged') === ev.code) { sessionStorage.removeItem('ozvi:codeChanged'); toast('Kód je zmenený na ' + ev.code + '. Ulož si nový odkaz organizátora.'); }
   runSync(syncToken);
 }
 function renderAdmin() {
@@ -1345,7 +1374,7 @@ async function enterScreen(code, key) {
   document.body.classList.add('screen');
   document.title = 'Plátno · ' + ev.name;
   app.innerHTML = `<div class="s-wrap">
-    <header class="s-top" id="sTop"><div class="row" style="gap:2vw;flex-wrap:nowrap"><span class="ev-logo-slot s-logo"></span><div class="s-join">Pripoj sa na <b>${esc(prettyHost())}</b> · kód <span class="code">${esc(ev.code)}</span></div></div><div class="s-qr" id="sQr"></div></header>
+    <header class="s-top" id="sTop"><div class="row" style="gap:2vw;flex-wrap:nowrap"><span class="ev-logo-slot s-logo"></span><div class="s-join">Pripoj sa na <b>${esc(prettyHost())}</b> · kód <span class="code ev-code">${esc(ev.code)}</span></div></div><div class="s-qr" id="sQr"></div></header>
     <main class="s-main" id="sMain"></main>
     <footer class="s-foot"><span id="evName">${esc(ev.name)}</span><span class="row"><span class="conn">Pripájam…</span><button data-act="fullscreen">⛶ Celá obrazovka</button></span></footer>
   </div>`;
