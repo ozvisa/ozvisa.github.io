@@ -535,7 +535,7 @@ async function runSync(token) {
     S.netErr++;
     setConn(false);
     if (/neexistuje/.test(e.message)) { stopSync(); renderGone(); return; }
-    if (/Neplatný kľúč/.test(e.message)) { stopSync(); renderError('Odkaz organizátora je neplatný.'); return; }
+    if (/Neplatný kľúč/.test(e.message)) { stopSync(); if (S.key && S.key === master()) loginExpired(); else renderError('Odkaz organizátora je neplatný.'); return; }
   } finally { S.inFlight = false; }
   if (token !== syncToken) return;
   if (S.again) { S.again = false; scheduleSync(80); return; }
@@ -735,13 +735,29 @@ async function route() {
   const r = parseRoute();
   try {
     if (r.view === 'e' && r.a) return await enterParticipant(r.a);
+    if (r.view === 'login') return renderLogin();
+    if (r.view === 'admin' && !r.a) return master() ? await renderDashboard() : renderLogin('#/admin');
+    if ((r.view === 'admin' || r.view === 'screen') && r.a && !r.b) {
+      if (!master()) return renderLogin(location.hash);
+      return r.view === 'admin' ? await enterAdmin(r.a, master()) : await enterScreen(r.a, master());
+    }
     if (r.view === 'admin' && r.a && r.b) return await enterAdmin(r.a, r.b);
     if (r.view === 'screen' && r.a && r.b) return await enterScreen(r.a, r.b);
-    if (r.view === 'new') return renderCreate();
-    renderHome();
-  } catch (e) { renderError(errMsg(e)); }
+    if (r.view === 'new') return await renderCreateGate();
+    await renderHome();
+  } catch (e) {
+    if (/Neplatný (odkaz|kľúč)/.test(e.message) && master() && !r.b) return loginExpired();
+    renderError(errMsg(e));
+  }
 }
 window.addEventListener('hashchange', route);
+const master = () => store.get('master', null);
+const keyPart = key => (key && key === master()) ? '' : '/' + key;   // odkazy bez prihlasovacieho tokenu
+function loginExpired() {
+  store.set('master', null);
+  renderLogin(location.hash);
+  toast('Prihlásenie vypršalo, prihlás sa znova', 'err');
+}
 function loading() { app.innerHTML = `<div class="loader"><div><div class="spin"></div>Načítavam…</div></div>`; }
 function renderError(msg) {
   app.innerHTML = `<div class="wrap"><div class="hero"><a class="logo" href="#/"><i>?</i>Ozvi sa!</a></div>
@@ -758,7 +774,13 @@ function renderSetup() {
 /* =====================================================================
    ÚVOD + VYTVORENIE UDALOSTI
    ===================================================================== */
-function renderHome() {
+async function renderHome() {
+  if (master()) { location.replace(baseUrl() + '#/admin'); return; }
+  loading();
+  let home = { featured: null, locked: false };
+  try { home = await rpc('get_home') || home; } catch (e) { /* stará databáza – pokračuj pôvodnou úvodnou stránkou */ }
+  if (home.featured && home.featured.code) { location.replace(baseUrl() + '#/e/' + home.featured.code); return; }
+  if (home.locked) return renderJoinOnly();
   const mine = store.get('events', []);
   app.innerHTML = `<div class="wrap">
     <div class="hero">
@@ -787,19 +809,92 @@ function renderHome() {
       <div class="feature"><b>Plátno</b>pre projektor s QR kódom</div>
     </div></div>`;
 }
-function renderCreate() {
+// verejná úvodná stránka, keď nie je vybraná žiadna udalosť
+function renderJoinOnly() {
+  app.innerHTML = `<div class="wrap">
+    <div class="hero">
+      <a class="logo" href="#/"><i>!</i>Ozvi sa!</a>
+      <h1 style="margin-top:28px">Daj publiku <em>hlas</em>.</h1>
+      <p>Zadaj kód udalosti, ktorý vidíš na plátne.</p>
+      <form class="join" data-form="join">
+        <input name="code" placeholder="KÓD UDALOSTI" maxlength="20" autocomplete="off" autocapitalize="characters" aria-label="Kód udalosti" required>
+        <button class="btn primary">Vstúpiť</button>
+      </form>
+    </div>
+    <p class="muted small" style="text-align:center;margin-top:40px"><a href="#/login" style="color:inherit">Prihlásenie organizátora</a></p></div>`;
+}
+function renderLogin(ret) {
+  S.loginReturn = ret && ret !== '#/login' ? ret : '#/admin';
+  app.innerHTML = `<div class="wrap" style="max-width:420px">
+    <div class="hero" style="padding-bottom:10px"><a class="logo" href="#/"><i>!</i>Ozvi sa!</a></div>
+    <form class="card stack" data-form="login">
+      <h2>Prihlásenie organizátora</h2>
+      <label class="field"><span>Heslo</span><input type="password" name="password" autocomplete="current-password" required></label>
+      <button class="btn primary block">Prihlásiť sa</button>
+    </form></div>`;
+  setTimeout(() => { const i = $('input[name=password]'); if (i) i.focus(); }, 50);
+}
+async function renderDashboard() {
+  loading();
+  let d;
+  try { d = await rpc('admin_events', { p_key: master() }); }
+  catch (e) { if (/vypršalo/.test(e.message)) return loginExpired(); throw e; }
+  S.dash = d;
+  document.title = 'Moje udalosti · Ozvi sa!';
+  const host = prettyHost();
+  const feat = d.events.find(e => e.id === d.featured);
+  app.innerHTML = `<div class="wrap wide">
+    <header class="a-top">
+      <div><a class="logo" href="#/admin"><i>!</i>Ozvi sa!</a><h1>Moje udalosti</h1></div>
+      <div class="row"><a class="btn primary" href="#/new">+ Nová udalosť</a><button class="btn ghost" data-act="logout">Odhlásiť sa</button></div>
+    </header>
+    <div class="card" style="margin:16px 0">
+      <b>Čo uvidia hostia na ${esc(host)}:</b>
+      ${feat ? ` udalosť <b>${esc(feat.name)}</b> (kód <span class="code">${esc(feat.code)}</span>).
+        <button class="btn sm ghost" data-act="feature" data-id="">Zrušiť</button>`
+      : ` <span class="muted">žiadnu udalosť – zobrazí sa im políčko na zadanie kódu.</span>`}
+    </div>
+    ${d.events.length ? d.events.map(e => `
+      <div class="pl ${e.id === d.featured ? 'active' : ''}"><div class="pl-head" style="cursor:default">
+        <div class="pl-t"><b>${esc(e.name)}</b><div class="row"><span class="muted small">Kód <span class="code">${esc(e.code)}</span> · ${new Date(e.created_at).toLocaleDateString('sk-SK')} · ${e.questions} ${plural(e.questions, 'otázka', 'otázky', 'otázok')} · ${e.polls} ${plural(e.polls, 'hlasovanie', 'hlasovania', 'hlasovaní')}</span>
+          ${e.online ? `<span class="badge green">${onlineText(e.online)}</span>` : ''}
+          ${e.id === d.featured ? '<span class="badge accent">Zobrazuje sa hosťom</span>' : ''}</div></div></div>
+        <div class="pl-actions">
+          <a class="btn sm primary" href="#/admin/${esc(e.code)}">Spravovať</a>
+          <a class="btn sm" href="#/screen/${esc(e.code)}" target="_blank" rel="noopener">Plátno ↗</a>
+          <a class="btn sm ghost" href="#/e/${esc(e.code)}" target="_blank" rel="noopener">Pohľad hosťa ↗</a>
+          ${e.id === d.featured ? '' : `<button class="btn sm dark" data-act="feature" data-id="${e.id}">Zobrazovať hosťom</button>`}
+        </div></div>`).join('')
+      : `<div class="card empty"><b>Zatiaľ žiadne udalosti</b>Vytvor prvú tlačidlom „+ Nová udalosť“.</div>`}
+  </div>`;
+}
+async function renderCreateGate() {
+  let locked = false;
+  try { locked = !!(await rpc('get_home') || {}).locked; } catch (e) {}
+  if (locked && !master()) return renderLogin('#/new');
+  renderCreate(locked);
+}
+function renderCreate(locked) {
   app.innerHTML = `<div class="wrap"><div class="hero" style="padding-bottom:6px"><a class="logo" href="#/"><i>!</i>Ozvi sa!</a></div>
     <form class="card stack" data-form="create">
       <h2>Nová udalosť</h2>
       <label class="field"><span>Názov</span><input name="evname" maxlength="120" placeholder="napr. Marketingová konferencia 2026" required></label>
       <label class="check"><input type="checkbox" name="moderation"><span><b>Schvaľovať otázky</b><br><span class="muted small">Otázky sa publiku zobrazia, až keď ich schváliš.</span></span></label>
-      <details><summary class="muted small" style="cursor:pointer">Mám PIN organizátora</summary>
+      ${locked ? '<input type="hidden" name="pin" value="">' : `<details><summary class="muted small" style="cursor:pointer">Mám PIN organizátora</summary>
         <label class="field" style="margin-top:10px"><span>PIN</span><input name="pin" autocomplete="off"></label>
-        <p class="muted small">PIN je potrebný, len ak ho správca aplikácie nastavil v databáze.</p></details>
+        <p class="muted small">PIN je potrebný, len ak ho správca aplikácie nastavil v databáze.</p></details>`}
       <button class="btn primary block">Vytvoriť udalosť</button>
     </form></div>`;
 }
 const FORMS = {
+  async login(f) {
+    await busy(f.querySelector('button'), async () => {
+      const r = await rpc('admin_password_login', { p_password: f.elements.password.value });
+      store.set('master', r.token);
+      location.hash = S.loginReturn || '#/admin';
+      if (location.hash === (S.loginReturn || '#/admin')) route();
+    });
+  },
   async join(f) {
     const code = f.code.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!code) return;
@@ -811,7 +906,7 @@ const FORMS = {
   },
   async create(f) {
     await busy(f.querySelector('button.primary'), async () => {
-      const r = await rpc('create_event', { p_name: f.elements.evname.value, p_moderation: f.moderation.checked, p_pin: f.pin.value || null });
+      const r = await rpc('create_event', { p_name: f.elements.evname.value, p_moderation: f.moderation.checked, p_pin: master() || f.pin.value || null });
       const list = store.get('events', []).filter(e => e.code !== r.code);
       list.unshift({ code: r.code, name: r.name, key: r.admin_key });
       store.set('events', list.slice(0, 30));
@@ -868,7 +963,7 @@ const FORMS = {
       const list = store.get('events', []).map(e => e.code === S.ev.code ? { ...e, code } : e);
       store.set('events', list);
       sessionStorage.setItem('ozvi:codeChanged', code);
-      location.hash = `#/admin/${code}/${S.key}`;
+      location.hash = `#/admin/${code}${keyPart(S.key)}`;
     });
   },
   async evname(f) {
@@ -1087,16 +1182,18 @@ async function enterAdmin(code, key) {
   S.role = 'admin';
   S.ev = ev;
   S.key = key;
-  const list = store.get('events', []).filter(e => e.code !== ev.code);
-  list.unshift({ code: ev.code, name: ev.name, key });
-  store.set('events', list.slice(0, 30));
+  if (key !== master()) {
+    const list = store.get('events', []).filter(e => e.code !== ev.code);
+    list.unshift({ code: ev.code, name: ev.name, key });
+    store.set('events', list.slice(0, 30));
+  }
   document.title = 'Správa · ' + ev.name;
-  const screenHref = `#/screen/${ev.code}/${key}`;
+  const screenHref = `#/screen/${ev.code}${keyPart(key)}`;
   app.innerHTML = `<div class="wrap wide">
     <header class="a-top">
-      <div><a class="logo" href="#/"><i>!</i>Ozvi sa!</a><span class="ev-logo-slot a-logo"></span><h1 id="evName">${esc(ev.name)}</h1>
+      <div><a class="logo" href="${master() ? '#/admin' : '#/'}"><i>!</i>Ozvi sa!</a>${master() ? '<a class="muted small" href="#/admin" style="margin-left:10px">← Moje udalosti</a>' : ''}<span class="ev-logo-slot a-logo"></span><h1 id="evName">${esc(ev.name)}</h1>
         <div class="muted small">Kód <span class="code" style="color:var(--accent)">${esc(ev.code)}</span> · <span class="conn">Pripájam…</span> · <span class="online" id="aOnline"></span></div></div>
-      <div class="row"><button class="btn" data-act="share">Pozvať účastníkov</button>
+      <div class="row"><span id="featBtn"></span><button class="btn" data-act="share">Pozvať účastníkov</button>
         <a class="btn primary" href="${screenHref}" target="_blank" rel="noopener">Otvoriť plátno ↗</a></div>
     </header>
     <nav class="tabs" id="atabs">
@@ -1163,13 +1260,14 @@ async function enterAdmin(code, key) {
         <div class="stack">
           <div class="card stack"><h3>Odkazy</h3>
             <div><div class="small muted">Pre účastníkov</div><div class="linkbox"><input readonly value="${esc(joinUrl(ev.code))}"><button class="btn sm" data-act="copy" data-v="${esc(joinUrl(ev.code))}">Kopírovať</button></div></div>
-            <div><div class="small muted">Organizátor (tajný – nezdieľaj)</div><div class="linkbox"><input readonly value="${esc(baseUrl() + '#/admin/' + ev.code + '/' + key)}"><button class="btn sm" data-act="copy" data-v="${esc(baseUrl() + '#/admin/' + ev.code + '/' + key)}">Kopírovať</button></div></div>
-            <p class="muted small">Odkaz organizátora si ulož. Kto ho má, môže udalosť spravovať. Na tomto zariadení ho nájdeš aj na úvodnej stránke.</p></div>
+            <div><div class="small muted">Organizátor (tajný – nezdieľaj)</div><div class="linkbox"><input readonly value="${esc(baseUrl() + '#/admin/' + ev.code + keyPart(key))}"><button class="btn sm" data-act="copy" data-v="${esc(baseUrl() + '#/admin/' + ev.code + keyPart(key))}">Kopírovať</button></div></div>
+            <p class="muted small">${key === master() ? 'Odkaz funguje po prihlásení tvojím heslom organizátora.' : 'Odkaz organizátora si ulož. Kto ho má, môže udalosť spravovať – aj bez hesla.'}</p></div>
           <div class="card stack"><h3>Vymazať udalosť</h3><p class="muted small">Natrvalo vymaže udalosť, otázky aj všetky odpovede.</p>
             <div><button class="btn danger" data-act="delEvent">Vymazať udalosť</button></div></div>
         </div>
       </div>
     </section></div>`;
+  if (master()) loadFeatured();
   if (sessionStorage.getItem('ozvi:new') === ev.code) { sessionStorage.removeItem('ozvi:new'); openShareModal(true); }
   if (sessionStorage.getItem('ozvi:codeChanged') === ev.code) { sessionStorage.removeItem('ozvi:codeChanged'); toast('Kód je zmenený na ' + ev.code + '. Ulož si nový odkaz organizátora.'); }
   runSync(syncToken);
@@ -1341,6 +1439,19 @@ async function savePoll(f, run) {
     kick();
   });
 }
+async function loadFeatured() {
+  try {
+    const h = await rpc('get_home');
+    S.featuredCode = h && h.featured ? h.featured.code : null;
+  } catch (e) { S.featuredCode = null; }
+  renderFeatBtn();
+}
+function renderFeatBtn() {
+  const el = $('#featBtn'); if (!el || !master() || !S.ev) return;
+  setHTML(el, S.featuredCode === S.ev.code
+    ? `<span class="badge accent" style="padding:8px 12px">Zobrazuje sa hosťom na ${esc(prettyHost())}</span>`
+    : `<button class="btn" data-act="feature" data-id="${S.ev.id}">Zobrazovať hosťom</button>`);
+}
 async function hideResp(el, args, msg) {
   await busy(el, async () => {
     await rpc('admin_hide_response', Object.assign({ p_event: S.ev.id, p_key: S.key, p_poll: el.dataset.id }, args));
@@ -1355,14 +1466,14 @@ async function adminEvent(patch) {
   kick();
 }
 function openShareModal(isNew) {
-  const ev = S.ev, url = joinUrl(ev.code), admin = baseUrl() + '#/admin/' + ev.code + '/' + S.key;
+  const ev = S.ev, url = joinUrl(ev.code), admin = baseUrl() + '#/admin/' + ev.code + keyPart(S.key);
   openModal(`<h3>${isNew ? 'Udalosť je pripravená 🎉' : 'Pozvi účastníkov'}</h3>
     <div class="qrbox" id="shareQr"></div>
     ${localNote()}
     <p style="text-align:center;margin:12px 0">Kód udalosti: <span class="code" style="font-size:22px;color:var(--accent)">${esc(ev.code)}</span></p>
     <div class="stack">
       <div><div class="small muted">Odkaz pre účastníkov</div><div class="linkbox"><input readonly value="${esc(url)}"><button class="btn sm" data-act="copy" data-v="${esc(url)}">Kopírovať</button></div></div>
-      ${isNew ? `<div class="notice warn"><b>Ulož si odkaz organizátora.</b> Bez neho sa k správe udalosti dostaneš len z tohto zariadenia.
+      ${isNew && !master() ? `<div class="notice warn"><b>Ulož si odkaz organizátora.</b> Bez neho sa k správe udalosti dostaneš len z tohto zariadenia.
         <div class="linkbox" style="margin-top:8px"><input readonly value="${esc(admin)}"><button class="btn sm" data-act="copy" data-v="${esc(admin)}">Kopírovať</button></div></div>` : ''}
     </div>
     <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn primary" data-act="closeModal">Hotovo</button></div>`);
@@ -1626,6 +1737,23 @@ const ACTIONS = {
   async saveRun() { await savePoll($('#editor'), true); },
   async mode(el) { await busy(el, () => adminEvent({ present_mode: el.dataset.v })); },
   share() { openShareModal(false); },
+  async feature(el) {
+    const id = el.dataset.id || null;
+    await busy(el, async () => {
+      try { await rpc('admin_set_featured', { p_key: master(), p_event: id }); }
+      catch (e) { if (/vypršalo/.test(e.message)) return loginExpired(); throw e; }
+      toast(id ? 'Hostia na ' + prettyHost() + ' teraz uvidia túto udalosť' : 'Hostia uvidia políčko na zadanie kódu');
+      if (S.role === 'admin') { S.featuredCode = id ? S.ev.code : null; renderFeatBtn(); }
+      else renderDashboard();
+    });
+  },
+  async logout(el) {
+    await busy(el, async () => {
+      try { await rpc('admin_logout', { p_key: master() }); } catch (e) {}
+      store.set('master', null);
+      location.hash = '#/';
+    });
+  },
   async hideWord(el, e) { e.preventDefault(); await hideResp(el, { p_text: el.dataset.v, p_hidden: true }, 'Slovo „' + el.dataset.v + '“ je skryté'); },
   async unhideWord(el, e) { e.preventDefault(); await hideResp(el, { p_text: el.dataset.v, p_hidden: false }, 'Slovo je znova viditeľné'); },
   async hideResp(el, e) { e.preventDefault(); await hideResp(el, { p_id: +el.dataset.rid, p_hidden: true }, 'Odpoveď je skrytá'); },
